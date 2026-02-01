@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+:root {
+  /* Core palette - night game atmosphere */
+  --sz-navy: #0a1628;
+  --sz-navy-light: #132240;
+  --sz-navy-lighter: #1a3055;
+
+  /* Accent colors */
+  --sz-lime: #7fff00;
+  --sz-lime-dim: #5fcc00;
+  --sz-amber: #ffb800;
+  --sz-red: #ff3b4f;
+
+  /* Neutrals */
+  --sz-white: #f8fafc;
+  --sz-gray: #94a3b8;
+  --sz-gray-dark: #475569;
+
+  /* Functional */
+  --background: var(--sz-navy);
+  --foreground: var(--sz-white);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Display font utility */
+.font-display {
+  font-family: 'Bebas Neue', Impact, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+/* Stadium lights background pattern */
+.stadium-lights {
+  background-image:
+    radial-gradient(ellipse 100% 50% at 50% 0%, rgba(127, 255, 0, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 40% at 20% 10%, rgba(255, 184, 0, 0.05) 0%, transparent 40%),
+    radial-gradient(ellipse 80% 40% at 80% 10%, rgba(255, 184, 0, 0.05) 0%, transparent 40%);
+}
+
+/* Diagonal stripe accent */
+.diagonal-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 2px,
+    rgba(127, 255, 0, 0.03) 2px,
+    rgba(127, 255, 0, 0.03) 4px
+  );
+}
+
+/* Glowing border effect */
+.glow-border {
+  box-shadow:
+    0 0 0 1px rgba(127, 255, 0, 0.2),
+    0 0 20px -5px rgba(127, 255, 0, 0.3);
+}
+
+/* Selection styling */
+::selection {
+  background: var(--sz-lime);
+  color: var(--sz-navy);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--sz-navy-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sz-gray-dark);
+  border-radius: 3px;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* Staggered animations */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+/* Safe area for PWA */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+}

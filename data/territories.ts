@@ -1,0 +1,35 @@
+// data/territories.ts
+// Team broadcast territory data (states where team is blacked out on MLB.TV)
+
+export const TEAM_TERRITORIES: Record<string, string[]> = {
+  'Arizona Diamondbacks': ['AZ'],
+  'Atlanta Braves': ['GA', 'AL', 'SC', 'MS', 'TN'],
+  'Baltimore Orioles': ['MD', 'DE', 'DC', 'VA', 'WV'],
+  'Boston Red Sox': ['MA', 'ME', 'NH', 'VT', 'RI', 'CT'],
+  'Chicago Cubs': ['IL', 'IA', 'IN'],
+  'Chicago White Sox': ['IL', 'IA', 'IN'],
+  'Cincinnati Reds': ['OH', 'KY', 'IN'],
+  'Cleveland Guardians': ['OH', 'KY'],
+  'Colorado Rockies': ['CO', 'WY', 'MT', 'UT', 'NM', 'NV', 'KS', 'NE'],
+  'Detroit Tigers': ['MI'],
+  'Houston Astros': ['TX'],
+  'Kansas City Royals': ['MO', 'KS', 'IA', 'NE', 'OK', 'AR'],
+  'Los Angeles Angels': ['CA', 'NV', 'HI'],
+  'Los Angeles Dodgers': ['CA', 'NV', 'HI'],
+  'Miami Marlins': ['FL'],
+  'Milwaukee Brewers': ['WI'],
+  'Minnesota Twins': ['MN', 'ND', 'SD', 'IA'],
+  'New York Mets': ['NY', 'NJ', 'CT'],
+  'New York Yankees': ['NY', 'NJ', 'CT'],
+  'Oakland Athletics': ['CA', 'NV'],
+  'Philadelphia Phillies': ['PA', 'NJ', 'DE'],
+  'Pittsburgh Pirates': ['PA', 'WV', 'OH'],
+  'San Diego Padres': ['CA', 'NV', 'AZ', 'HI'],
+  'San Francisco Giants': ['CA', 'NV', 'HI'],
+  'Seattle Mariners': ['WA', 'OR', 'ID', 'MT', 'AK'],
+  'St. Louis Cardinals': ['MO', 'IL', 'AR', 'TN', 'KY', 'OK', 'MS'],
+  'Tampa Bay Rays': ['FL'],
+  'Texas Rangers': ['TX', 'OK', 'AR', 'LA'],
+  'Toronto Blue Jays': ['ON'], // Canada - special handling may be needed
+  'Washington Nationals': ['DC', 'MD', 'VA', 'WV'],
+};
