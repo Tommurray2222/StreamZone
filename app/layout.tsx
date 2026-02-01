@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'StreamZone - MLB Streaming Guide',
+  title: 'StreamZone - Sports Streaming Guide',
   description: 'Find where to watch MLB games based on your location. Navigate blackouts and streaming services.',
   manifest: '/manifest.json',
   appleWebApp: {
