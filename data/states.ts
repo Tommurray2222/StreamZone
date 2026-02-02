@@ -1,5 +1,5 @@
 // data/states.ts
-// US States list for location selector
+// US States and Canadian provinces for location selector
 
 export interface USState {
   abbr: string;
@@ -44,6 +44,7 @@ export const US_STATES: USState[] = [
   { abbr: 'ND', name: 'North Dakota' },
   { abbr: 'OH', name: 'Ohio' },
   { abbr: 'OK', name: 'Oklahoma' },
+  { abbr: 'ON', name: 'Ontario (Canada)' },
   { abbr: 'OR', name: 'Oregon' },
   { abbr: 'PA', name: 'Pennsylvania' },
   { abbr: 'RI', name: 'Rhode Island' },

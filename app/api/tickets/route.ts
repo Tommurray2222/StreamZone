@@ -1,41 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getEstimatedTicketPrice } from '@/data/broadcast-schedule'
 
-const SEATGEEK_API = 'https://api.seatgeek.com/2/events'
-const CLIENT_ID = process.env.SEATGEEK_CLIENT_ID
+const TICKETMASTER_API = 'https://app.ticketmaster.com/discovery/v2/events.json'
+const TICKETMASTER_KEY = process.env.TICKETMASTER_API_KEY
 
-// Map team names to SeatGeek performer slugs
-const TEAM_SLUGS: Record<string, string> = {
-  'Arizona Diamondbacks': 'arizona-diamondbacks',
-  'Atlanta Braves': 'atlanta-braves',
-  'Baltimore Orioles': 'baltimore-orioles',
-  'Boston Red Sox': 'boston-red-sox',
-  'Chicago Cubs': 'chicago-cubs',
-  'Chicago White Sox': 'chicago-white-sox',
-  'Cincinnati Reds': 'cincinnati-reds',
-  'Cleveland Guardians': 'cleveland-guardians',
-  'Colorado Rockies': 'colorado-rockies',
-  'Detroit Tigers': 'detroit-tigers',
-  'Houston Astros': 'houston-astros',
-  'Kansas City Royals': 'kansas-city-royals',
-  'Los Angeles Angels': 'los-angeles-angels',
-  'Los Angeles Dodgers': 'los-angeles-dodgers',
-  'Miami Marlins': 'miami-marlins',
-  'Milwaukee Brewers': 'milwaukee-brewers',
-  'Minnesota Twins': 'minnesota-twins',
-  'New York Mets': 'new-york-mets',
-  'New York Yankees': 'new-york-yankees',
-  'Oakland Athletics': 'oakland-athletics',
-  'Philadelphia Phillies': 'philadelphia-phillies',
-  'Pittsburgh Pirates': 'pittsburgh-pirates',
-  'San Diego Padres': 'san-diego-padres',
-  'San Francisco Giants': 'san-francisco-giants',
-  'Seattle Mariners': 'seattle-mariners',
-  'St. Louis Cardinals': 'st-louis-cardinals',
-  'Tampa Bay Rays': 'tampa-bay-rays',
-  'Texas Rangers': 'texas-rangers',
-  'Toronto Blue Jays': 'toronto-blue-jays',
-  'Washington Nationals': 'washington-nationals',
+// Map team names to Ticketmaster keywords
+const TEAM_KEYWORDS: Record<string, string> = {
+  'Arizona Diamondbacks': 'Diamondbacks',
+  'Atlanta Braves': 'Braves',
+  'Baltimore Orioles': 'Orioles',
+  'Boston Red Sox': 'Red Sox',
+  'Chicago Cubs': 'Cubs',
+  'Chicago White Sox': 'White Sox',
+  'Cincinnati Reds': 'Reds',
+  'Cleveland Guardians': 'Guardians',
+  'Colorado Rockies': 'Rockies',
+  'Detroit Tigers': 'Tigers',
+  'Houston Astros': 'Astros',
+  'Kansas City Royals': 'Royals',
+  'Los Angeles Angels': 'Angels',
+  'Los Angeles Dodgers': 'Dodgers',
+  'Miami Marlins': 'Marlins',
+  'Milwaukee Brewers': 'Brewers',
+  'Minnesota Twins': 'Twins',
+  'New York Mets': 'Mets',
+  'New York Yankees': 'Yankees',
+  'Oakland Athletics': 'Athletics',
+  'Athletics': 'Athletics',
+  'Sacramento Athletics': 'Athletics',
+  'Philadelphia Phillies': 'Phillies',
+  'Pittsburgh Pirates': 'Pirates',
+  'San Diego Padres': 'Padres',
+  'San Francisco Giants': 'Giants',
+  'Seattle Mariners': 'Mariners',
+  'St. Louis Cardinals': 'Cardinals',
+  'Tampa Bay Rays': 'Rays',
+  'Texas Rangers': 'Rangers',
+  'Toronto Blue Jays': 'Blue Jays',
+  'Washington Nationals': 'Nationals',
 }
 
 export async function GET(request: NextRequest) {
@@ -59,17 +60,17 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!CLIENT_ID) {
+  if (!TICKETMASTER_KEY) {
     return NextResponse.json(
-      { error: 'SeatGeek API key not configured' },
+      { error: 'Ticketmaster API key not configured' },
       { status: 500 }
     )
   }
 
-  const homeSlug = TEAM_SLUGS[homeTeam]
-  const awaySlug = TEAM_SLUGS[awayTeam]
+  const homeKeyword = TEAM_KEYWORDS[homeTeam]
+  const awayKeyword = TEAM_KEYWORDS[awayTeam]
 
-  if (!homeSlug || !awaySlug) {
+  if (!homeKeyword || !awayKeyword) {
     return NextResponse.json(
       { error: 'Unknown team name' },
       { status: 400 }
@@ -77,90 +78,90 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Search for the event by either team and date (using local datetime)
-    const dateStart = `${date}T00:00:00`
-    const dateEnd = `${date}T23:59:59`
+    // Search for MLB events on this date with the home team
+    // Extend search window by 1 day to handle timezone differences (UTC vs local)
+    const searchDate = new Date(date)
+    const nextDate = new Date(searchDate)
+    nextDate.setDate(nextDate.getDate() + 1)
+    const nextDateStr = nextDate.toISOString().split('T')[0]
 
-    // Try searching by away team first (for away games)
-    let url = new URL(SEATGEEK_API)
-    url.searchParams.set('client_id', CLIENT_ID)
-    url.searchParams.set('performers.slug', awaySlug)
-    url.searchParams.set('datetime_local.gte', dateStart)
-    url.searchParams.set('datetime_local.lte', dateEnd)
-    url.searchParams.set('type', 'mlb')
+    const url = new URL(TICKETMASTER_API)
+    url.searchParams.set('apikey', TICKETMASTER_KEY)
+    url.searchParams.set('keyword', homeKeyword)
+    url.searchParams.set('classificationName', 'Baseball')
+    url.searchParams.set('startDateTime', `${date}T00:00:00Z`)
+    url.searchParams.set('endDateTime', `${nextDateStr}T12:00:00Z`)
+    url.searchParams.set('size', '20')
 
-    let response = await fetch(url.toString())
+    const response = await fetch(url.toString())
 
-    // Check response status BEFORE parsing JSON
     if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Unable to fetch ticket data' },
-        { status: 502 }
-      )
-    }
-
-    let data = await response.json()
-
-    // If no results, try home team
-    if (!data.events || data.events.length === 0) {
-      url = new URL(SEATGEEK_API)
-      url.searchParams.set('client_id', CLIENT_ID)
-      url.searchParams.set('performers.slug', homeSlug)
-      url.searchParams.set('datetime_local.gte', dateStart)
-      url.searchParams.set('datetime_local.lte', dateEnd)
-      url.searchParams.set('type', 'mlb')
-
-      response = await fetch(url.toString())
-
-      // Check response status BEFORE parsing JSON
-      if (!response.ok) {
-        return NextResponse.json(
-          { error: 'Unable to fetch ticket data' },
-          { status: 502 }
-        )
-      }
-
-      data = await response.json()
-    }
-
-    // Find the matching event (must include both teams)
-    const event = data.events?.find((e: any) => {
-      const performers = e.performers?.map((p: any) => p.slug) || []
-      return performers.includes(homeSlug) && performers.includes(awaySlug)
-    })
-
-    if (!event) {
-      // Even if no SeatGeek event, check for estimated price
-      const estimatedPrice = getEstimatedTicketPrice(homeTeam, awayTeam, date)
+      console.error('Ticketmaster API error:', response.status)
       return NextResponse.json({
         found: false,
-        message: 'No tickets found for this game',
-        estimatedPrice
+        message: 'Unable to fetch ticket data'
       })
     }
 
-    // Use SeatGeek price if available, otherwise use estimated price
-    const seatgeekPrice = event.stats?.lowest_price || null
-    const estimatedPrice = getEstimatedTicketPrice(homeTeam, awayTeam, date)
-    const lowestPrice = seatgeekPrice || estimatedPrice
+    let data = await response.json()
+    let events = data._embedded?.events || []
+
+    // Find the matching event - must include BOTH teams in the title
+    let event = events.find((e: any) => {
+      const name = e.name?.toLowerCase() || ''
+      const awayKeywordLower = awayKeyword.toLowerCase()
+      const homeKeywordLower = homeKeyword.toLowerCase()
+
+      // Require both teams to be in the event name (e.g., "Yankees at Giants")
+      return name.includes(homeKeywordLower) && name.includes(awayKeywordLower)
+    })
+
+    // If no match found, try searching with away team keyword
+    if (!event) {
+      const fallbackUrl = new URL(TICKETMASTER_API)
+      fallbackUrl.searchParams.set('apikey', TICKETMASTER_KEY)
+      fallbackUrl.searchParams.set('keyword', awayKeyword)
+      fallbackUrl.searchParams.set('classificationName', 'Baseball')
+      fallbackUrl.searchParams.set('startDateTime', `${date}T00:00:00Z`)
+      fallbackUrl.searchParams.set('endDateTime', `${nextDateStr}T12:00:00Z`)
+      fallbackUrl.searchParams.set('size', '20')
+
+      const fallbackResponse = await fetch(fallbackUrl.toString())
+      if (fallbackResponse.ok) {
+        const fallbackData = await fallbackResponse.json()
+        const fallbackEvents = fallbackData._embedded?.events || []
+
+        event = fallbackEvents.find((e: any) => {
+          const name = e.name?.toLowerCase() || ''
+          return name.includes(homeKeyword.toLowerCase()) && name.includes(awayKeyword.toLowerCase())
+        })
+      }
+    }
+
+    if (!event) {
+      return NextResponse.json({
+        found: false,
+        message: 'No tickets found for this game'
+      })
+    }
+
+    // Get ticket URL
+    const ticketUrl = event.url || null
 
     return NextResponse.json({
       found: true,
       eventId: event.id,
-      title: event.title,
-      url: event.url,
-      lowestPrice,
-      isEstimated: !seatgeekPrice && !!estimatedPrice,
-      averagePrice: event.stats?.average_price || null,
-      listingCount: event.stats?.listing_count || 0,
-      venue: event.venue?.name,
-      datetime: event.datetime_local
+      title: event.name,
+      url: ticketUrl,
+      venue: event._embedded?.venues?.[0]?.name,
+      datetime: event.dates?.start?.localDate
     })
+
   } catch (error) {
-    console.error('SeatGeek API error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch ticket data' },
-      { status: 500 }
-    )
+    console.error('Ticketmaster API error:', error)
+    return NextResponse.json({
+      found: false,
+      error: 'Failed to fetch ticket data'
+    })
   }
 }

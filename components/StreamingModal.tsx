@@ -1,9 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { getStreamingOptions, StreamingResult, StreamingService } from '@/lib/streaming'
+import { getStreamingOptions, StreamingResult, StreamingService, BestValueOption } from '@/lib/streaming'
 import { US_STATES } from '@/data/states'
 import { CHANNEL_STREAMING_MAP } from '@/data/broadcasts'
+import {
+  requestNotificationPermission,
+  scheduleGameReminder,
+  cancelGameReminder,
+  hasGameReminder,
+  GameReminder
+} from '@/lib/notifications'
 
 interface Game {
   id: string
@@ -15,6 +22,7 @@ interface Game {
   broadcast: string[]
   isNational: boolean
   nationalNote?: string
+  status?: string
 }
 
 interface StreamingModalProps {
@@ -41,6 +49,9 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
   const [standings, setStandings] = useState<StandingsData | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
+  const [selectedValueOption, setSelectedValueOption] = useState<BestValueOption | null>(null)
+  const [showOtherOptions, setShowOtherOptions] = useState(false)
+  const [displayedGames, setDisplayedGames] = useState(5)
   const modalRef = useRef<HTMLDivElement>(null)
   const startY = useRef<number>(0)
   const currentY = useRef<number>(0)
@@ -60,10 +71,17 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
         .then(data => setStandings(data))
         .catch(() => setStandings(null))
 
-      // Fetch live schedule
-      fetch(`/api/schedule?team=${encodeURIComponent(team)}&season=2026&limit=3`)
+      // Fetch live schedule (get 100 games, filter to 50 upcoming)
+      fetch(`/api/schedule?team=${encodeURIComponent(team)}&season=2026&limit=100`)
         .then(res => res.json())
-        .then(data => setSchedule(data.games || []))
+        .then(data => {
+          const allGames = data.games || []
+          // Filter out completed games and take first 50 upcoming
+          const upcomingGames = allGames
+            .filter((game: Game) => game.status !== 'Final' && game.status !== 'Game Over')
+            .slice(0, 50)
+          setSchedule(upcomingGames)
+        })
         .catch(() => setSchedule([]))
 
       // Small delay for animation
@@ -77,6 +95,7 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
         setStreamingData(null)
         setSchedule([])
         setStandings(null)
+        setDisplayedGames(5)
       }, 300)
       return () => clearTimeout(timer)
     }
@@ -205,6 +224,143 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
               </div>
             </div>
 
+            {/* Service Detail Popup */}
+            {selectedValueOption && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                <div
+                  className="absolute inset-0 bg-black/50"
+                  onClick={() => setSelectedValueOption(null)}
+                />
+                <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-2xl p-5 max-w-sm w-full shadow-xl">
+                  <button
+                    onClick={() => setSelectedValueOption(null)}
+                    className="absolute top-3 right-3 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-xl font-bold text-[var(--sz-white)]">
+                      {selectedValueOption.service.name}
+                    </h4>
+                    {streamingData.allValueOptions[0]?.service.name === selectedValueOption.service.name && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--sz-lime)]/20 text-[var(--sz-lime)]">
+                        Best Value
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-[var(--sz-gray)] mb-4">
+                    {selectedValueOption.reasoning}
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                      <span className="text-sm text-[var(--sz-gray)]">Monthly Price</span>
+                      <span className="text-lg font-bold text-[var(--sz-lime)]">${selectedValueOption.service.priceNum}/mo</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                      <span className="text-sm text-[var(--sz-gray)]">Season Cost (6 mo)</span>
+                      <span className="font-semibold text-[var(--sz-white)]">${selectedValueOption.annualCost}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                      <span className="text-sm text-[var(--sz-gray)]">Games Covered</span>
+                      <span className="font-semibold text-[var(--sz-white)]">~{selectedValueOption.gamesPerSeason} games</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                      <span className="text-sm text-[var(--sz-gray)]">Coverage</span>
+                      <span className="font-semibold text-[var(--sz-white)]">{selectedValueOption.coveragePercent}%</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-[var(--sz-gray)]">Price per Game</span>
+                      <span className="font-semibold text-[var(--sz-amber)]">${selectedValueOption.pricePerGame}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedValueOption(null)}
+                    className="w-full mt-5 py-3 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Other Options Popup */}
+            {showOtherOptions && streamingData.allValueOptions && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                <div
+                  className="absolute inset-0 bg-black/50"
+                  onClick={() => setShowOtherOptions(false)}
+                />
+                <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-2xl p-5 max-w-sm w-full shadow-xl max-h-[80vh] overflow-y-auto">
+                  <button
+                    onClick={() => setShowOtherOptions(false)}
+                    className="absolute top-3 right-3 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+
+                  <h4 className="text-lg font-bold text-[var(--sz-white)] mb-4">
+                    Other Streaming Options
+                  </h4>
+
+                  <div className="space-y-2">
+                    {(() => {
+                      const excludeNames = new Set([
+                        streamingData.categoryOptions.bestOverall?.service.name,
+                        streamingData.categoryOptions.bestBudget?.service.name
+                      ].filter(Boolean))
+                      return streamingData.allValueOptions
+                        .filter(opt => !excludeNames.has(opt.service.name))
+                        .slice(0, 5)
+                        .map((option) => (
+                          <button
+                            key={option.service.name}
+                            onClick={() => {
+                              setShowOtherOptions(false)
+                              setSelectedValueOption(option)
+                            }}
+                            className="w-full p-3 rounded-lg text-left transition-all bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-gray-dark)]"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-semibold text-[var(--sz-white)]">
+                                  {option.service.name}
+                                </div>
+                                <div className="text-xs text-[var(--sz-gray)] mt-0.5">
+                                  {option.reasoning}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0 ml-3">
+                                <div className="text-sm font-bold text-[var(--sz-lime)]">
+                                  ${option.service.priceNum}/mo
+                                </div>
+                                <div className="text-xs text-[var(--sz-gray)]">
+                                  {option.coveragePercent}% coverage
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                    })()}
+                  </div>
+
+                  <button
+                    onClick={() => setShowOtherOptions(false)}
+                    className="w-full mt-4 py-3 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Upcoming Games Schedule */}
             {schedule.length > 0 && (
               <div className="mb-6">
@@ -212,7 +368,7 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
                   Upcoming Games
                 </h3>
                 <div className="space-y-3">
-                  {schedule.map((game) => (
+                  {schedule.slice(0, displayedGames).map((game) => (
                     <GameCard
                       key={game.id}
                       game={game}
@@ -222,29 +378,84 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
                     />
                   ))}
                 </div>
+                {schedule.length > displayedGames && (
+                  <button
+                    onClick={() => setDisplayedGames(prev => prev + 5)}
+                    className="w-full mt-4 flex items-center gap-3 group"
+                  >
+                    <div className="flex-1 h-px bg-[var(--sz-navy-lighter)] group-hover:bg-[var(--sz-gray-dark)] transition-colors" />
+                    <span className="text-xs font-semibold tracking-widest text-[var(--sz-gray)] uppercase group-hover:text-[var(--sz-white)] transition-colors">
+                      See More
+                    </span>
+                    <div className="flex-1 h-px bg-[var(--sz-navy-lighter)] group-hover:bg-[var(--sz-gray-dark)] transition-colors" />
+                  </button>
+                )}
               </div>
             )}
 
-            {/* Blackout Explanation */}
-            <div className="p-4 rounded-xl bg-[var(--sz-navy-light)]/50 border border-[var(--sz-navy-lighter)]">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5">
-                  <svg className="w-5 h-5 text-[var(--sz-amber)]" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-[var(--sz-white)] mb-1">
-                    {streamingData.isBlackedOut ? 'Why am I blacked out?' : 'About out-of-market viewing'}
-                  </h4>
-                  <p className="text-sm text-[var(--sz-gray)] leading-relaxed">
-                    {streamingData.isBlackedOut
-                      ? `You're in ${team}'s broadcast territory. MLB.TV blacks out local games to protect RSN rights. Watch on ${streamingData.rsnInfo.name} instead.`
-                      : `You're outside ${team}'s territory, so MLB.TV has full streaming rights for all regular season games. National broadcasts (ESPN, FOX, etc.) may still be subject to blackouts.`}
-                  </p>
+            {/* Best Value Providers */}
+            {streamingData.categoryOptions && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold tracking-widest text-[var(--sz-gray)] uppercase mb-3">
+                  Best Value Providers
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Best Overall */}
+                  {streamingData.categoryOptions.bestOverall && (
+                    <button
+                      onClick={() => setSelectedValueOption(streamingData.categoryOptions.bestOverall)}
+                      className="py-2 px-3 rounded-lg text-center transition-all bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-gray-dark)] flex flex-col"
+                    >
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--sz-lime)]">
+                        Best Overall
+                      </div>
+                      <div className="text-sm font-semibold text-[var(--sz-white)] leading-tight mt-1">
+                        {streamingData.categoryOptions.bestOverall.service.name}
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Best Value */}
+                  {streamingData.categoryOptions.bestBudget && (
+                    <button
+                      onClick={() => setSelectedValueOption(streamingData.categoryOptions.bestBudget)}
+                      className="py-2 px-3 rounded-lg text-center transition-all bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-gray-dark)] flex flex-col"
+                    >
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--sz-amber)]">
+                        Best Value
+                      </div>
+                      <div className="text-sm font-semibold text-[var(--sz-white)] leading-tight mt-1">
+                        {streamingData.categoryOptions.bestBudget.service.name}
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Other */}
+                  {(() => {
+                    const excludeNames = new Set([
+                      streamingData.categoryOptions.bestOverall?.service.name,
+                      streamingData.categoryOptions.bestBudget?.service.name
+                    ].filter(Boolean))
+                    const otherOptions = streamingData.allValueOptions?.filter(
+                      opt => !excludeNames.has(opt.service.name)
+                    ) || []
+                    return otherOptions.length > 0 && (
+                      <button
+                        onClick={() => setShowOtherOptions(true)}
+                        className="py-2 px-3 rounded-lg text-center transition-all bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-gray-dark)] flex flex-col"
+                      >
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--sz-gray)]">
+                          Other
+                        </div>
+                        <div className="text-sm font-semibold text-[var(--sz-white)] leading-tight mt-1">
+                          +{Math.min(5, otherOptions.length)} Options
+                        </div>
+                      </button>
+                    )
+                  })()}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Close Button */}
             <button
@@ -305,6 +516,15 @@ interface TicketData {
   estimatedPrice?: number | null
 }
 
+interface LiveScoreData {
+  found: boolean
+  isLive: boolean
+  isFinal: boolean
+  homeScore: number
+  awayScore: number
+  inningState?: string | null
+}
+
 // Validate URL protocol to prevent javascript: or other malicious URLs
 const isValidTicketUrl = (url: string): boolean => {
   try {
@@ -318,9 +538,54 @@ const isValidTicketUrl = (url: string): boolean => {
 function GameCard({ game, isBlackedOut, teamRSN, homeTeam }: { game: Game; isBlackedOut: boolean; teamRSN: string; homeTeam: string }) {
   const [ticketData, setTicketData] = useState<TicketData | null>(null)
   const [ticketLoading, setTicketLoading] = useState(true)
+  const [showAllServices, setShowAllServices] = useState(false)
+  const [hasReminder, setHasReminder] = useState(false)
+  const [reminderLoading, setReminderLoading] = useState(false)
+  const [liveScore, setLiveScore] = useState<LiveScoreData | null>(null)
 
-  // Fetch real ticket data from SeatGeek
+  // Check if game is live or in progress
+  const isGameLive = game.status === 'In Progress' || game.status === 'Live'
+  const isGameFinal = game.status === 'Final' || game.status === 'Game Over'
+
+  // Check if reminder is set on mount
   useEffect(() => {
+    setHasReminder(hasGameReminder(game.id))
+  }, [game.id])
+
+  // Fetch live score when game is in progress
+  useEffect(() => {
+    if (!isGameLive && !isGameFinal) {
+      setLiveScore(null)
+      return
+    }
+
+    async function fetchLiveScore() {
+      try {
+        const response = await fetch(`/api/live-score?gameId=${game.id}`)
+        const data = await response.json()
+        setLiveScore(data)
+      } catch (error) {
+        console.error('Failed to fetch live score:', error)
+        setLiveScore(null)
+      }
+    }
+
+    fetchLiveScore()
+
+    // Refresh score every 30 seconds for live games
+    if (isGameLive) {
+      const interval = setInterval(fetchLiveScore, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [game.id, isGameLive, isGameFinal])
+
+  // Fetch real ticket data (only for non-live games)
+  useEffect(() => {
+    if (isGameLive || isGameFinal) {
+      setTicketLoading(false)
+      return
+    }
+
     async function fetchTickets() {
       try {
         // For home games: homeTeam is our team, awayTeam is opponent
@@ -342,7 +607,44 @@ function GameCard({ game, isBlackedOut, teamRSN, homeTeam }: { game: Game; isBla
     }
 
     fetchTickets()
-  }, [game.date, game.opponent, game.isHome, homeTeam])
+  }, [game.date, game.opponent, game.isHome, homeTeam, isGameLive, isGameFinal])
+
+  // Toggle game reminder
+  const toggleReminder = async () => {
+    setReminderLoading(true)
+    try {
+      if (hasReminder) {
+        await cancelGameReminder(game.id)
+        setHasReminder(false)
+      } else {
+        const granted = await requestNotificationPermission()
+        if (!granted) {
+          alert('Please enable notifications to set game reminders')
+          return
+        }
+
+        const watchInfo = getWatchInfo()
+        const reminder: GameReminder = {
+          gameId: game.id,
+          team: homeTeam,
+          opponent: game.opponent,
+          gameDate: game.date,
+          gameTime: game.time,
+          channel: watchInfo.channel,
+          isHome: game.isHome
+        }
+
+        const success = await scheduleGameReminder(reminder, 30)
+        if (success) {
+          setHasReminder(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling reminder:', error)
+    } finally {
+      setReminderLoading(false)
+    }
+  }
 
   // Format date for display
   const gameDate = new Date(game.date + 'T12:00:00')
@@ -411,81 +713,167 @@ function GameCard({ game, isBlackedOut, teamRSN, homeTeam }: { game: Game; isBla
   const streamingServices = getStreamingServices(watchInfo.channel)
 
   return (
-    <div className="p-4 rounded-xl bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)]">
-      {/* Date and Time Row */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="text-center">
-            <div className="text-xs font-semibold text-[var(--sz-lime)] uppercase">{dayName}</div>
-            <div className="text-sm font-medium text-[var(--sz-white)]">{monthDay}</div>
-          </div>
-          <div className="w-px h-8 bg-[var(--sz-navy-lighter)]" />
-          <div className="text-sm text-[var(--sz-gray)]">{game.time}</div>
-        </div>
+    <div className="p-3 rounded-lg bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)]">
+      <div className="flex gap-3">
+        {/* Left: Game Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex gap-3">
+            {/* Date & Channel Column */}
+            <div className="text-center shrink-0 w-12">
+              <div className="text-[10px] font-bold text-[var(--sz-lime)] uppercase">{dayName}</div>
+              <div className="text-xs font-semibold text-[var(--sz-white)]">{monthDay}</div>
+              {/* Horizontal divider - left side */}
+              <div className="mt-2 pt-2 border-t border-[var(--sz-navy-lighter)]">
+                <div className="text-[10px] font-bold text-[var(--sz-lime)]">{watchInfo.channel}</div>
+              </div>
+            </div>
 
-        {/* National badge */}
-        {game.isNational && (
-          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--sz-amber)]/20 text-[var(--sz-amber)]">
-            National
-          </span>
-        )}
-      </div>
+            {/* Solid vertical line */}
+            <div className="w-px bg-[var(--sz-navy-lighter)] shrink-0" />
 
-      {/* Matchup Row with Venue */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[var(--sz-gray)] uppercase">
-            {game.isHome ? 'vs' : '@'}
-          </span>
-          <span className="font-semibold text-[var(--sz-white)]">{game.opponent}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-[var(--sz-gray)]">
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span>{game.venue}</span>
-        </div>
-      </div>
-
-      {/* Where to Watch */}
-      <div className="pt-3 border-t border-[var(--sz-navy-lighter)]">
-        <div className="flex items-center gap-2 mb-2">
-          <svg className="w-4 h-4 text-[var(--sz-lime)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-          </svg>
-          <span className="text-sm font-semibold text-[var(--sz-white)]">{watchInfo.channel}</span>
-          <span className="text-xs text-[var(--sz-gray)]">• {watchInfo.note}</span>
-        </div>
-
-        {/* Streaming Services */}
-        {streamingServices.length > 0 && (
-          <div className="mt-2">
-            <div className="text-xs text-[var(--sz-gray)] mb-1.5">Available on:</div>
-            <div className="flex flex-wrap gap-1.5">
-              {streamingServices.map((service, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-1 rounded-md text-xs font-medium bg-[var(--sz-navy-lighter)] text-[var(--sz-white)]"
-                >
-                  {service.replace(/\s*\([^)]*\)/g, '')}
+            {/* Opponent & Streaming Column */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium text-[var(--sz-gray)] uppercase">
+                  {game.isHome ? 'vs' : '@'}
                 </span>
-              ))}
+                <span className="text-sm font-bold text-[var(--sz-white)] truncate">{game.opponent}</span>
+                <span className={`text-[10px] font-bold mt-[3px] ${game.isHome ? 'text-[var(--sz-amber)]' : 'text-[var(--sz-red)]'}`}>
+                  {game.isHome ? 'H' : 'A'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[var(--sz-gray)]">{game.time}</span>
+                <button
+                  onClick={toggleReminder}
+                  disabled={reminderLoading}
+                  className={`p-1 rounded-full transition-all ${
+                    hasReminder
+                      ? 'text-[var(--sz-amber)] bg-[var(--sz-amber)]/10'
+                      : 'text-[var(--sz-gray)] hover:text-[var(--sz-white)] hover:bg-[var(--sz-navy-lighter)]'
+                  } ${reminderLoading ? 'opacity-50' : ''}`}
+                  title={hasReminder ? 'Cancel reminder' : 'Set reminder (30 min before)'}
+                >
+                  {reminderLoading ? (
+                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : hasReminder ? (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {/* Horizontal divider - right side */}
+              <div className="mt-1 pt-2 border-t border-[var(--sz-navy-lighter)]">
+                {streamingServices.length > 0 ? (
+                  <div
+                    className={`flex items-center gap-1.5 ${streamingServices.length > 3 ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    onClick={() => streamingServices.length > 3 && setShowAllServices(true)}
+                  >
+                    {streamingServices.slice(0, 3).map((service, idx) => (
+                      <span
+                        key={idx}
+                        className="px-1.5 py-0.5 rounded bg-[var(--sz-navy-lighter)] text-[10px] font-medium text-[var(--sz-white)] whitespace-nowrap"
+                      >
+                        {service.replace(/\s*\([^)]*\)/g, '')}
+                      </span>
+                    ))}
+                    {streamingServices.length > 3 && (
+                      <span className="text-[10px] text-[var(--sz-white)] whitespace-nowrap">+{streamingServices.length - 3}</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-[var(--sz-gray)]">Streaming TBD</span>
+                )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Buy Tickets */}
-      <div className="mt-3">
-          {ticketLoading ? (
-            <div className="flex items-center justify-center p-3 rounded-lg bg-[var(--sz-navy-lighter)] border border-[var(--sz-navy-lighter)]">
-              <div className="flex items-center gap-2 text-sm text-[var(--sz-gray)]">
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          {/* All Streaming Services Popup */}
+          {showAllServices && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setShowAllServices(false)}
+              />
+              <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-xl p-4 max-w-xs w-full shadow-xl">
+                <button
+                  onClick={() => setShowAllServices(false)}
+                  className="absolute top-2 right-2 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                <h4 className="text-sm font-bold text-[var(--sz-white)] mb-3">
+                  Watch on
+                </h4>
+
+                <div className="flex flex-wrap gap-2">
+                  {streamingServices.map((service, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-1 rounded bg-[var(--sz-navy-lighter)] text-xs font-medium text-[var(--sz-white)]"
+                    >
+                      {service.replace(/\s*\([^)]*\)/g, '')}
+                    </span>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setShowAllServices(false)}
+                  className="w-full mt-4 py-2 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] text-sm font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Tickets or Live Score */}
+        <div className="shrink-0 pl-3 border-l border-[var(--sz-navy-lighter)] flex items-center">
+          {(isGameLive || isGameFinal) && liveScore?.found ? (
+            // Live Score Display
+            <div className="flex flex-col items-center text-center min-w-[40px]">
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] font-bold text-[var(--sz-gray)] uppercase">A</span>
+                <span className={`text-sm font-bold ${isGameLive ? 'text-[var(--sz-white)]' : 'text-[var(--sz-gray)]'}`}>
+                  {game.isHome ? liveScore.awayScore : liveScore.homeScore}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] font-bold text-[var(--sz-gray)] uppercase">H</span>
+                <span className={`text-sm font-bold ${isGameLive ? 'text-[var(--sz-white)]' : 'text-[var(--sz-gray)]'}`}>
+                  {game.isHome ? liveScore.homeScore : liveScore.awayScore}
+                </span>
+              </div>
+              {isGameLive && liveScore.inningState && (
+                <div className="text-[8px] font-bold text-[var(--sz-lime)] uppercase mt-0.5">
+                  {liveScore.inningState}
+                </div>
+              )}
+              {isGameFinal && (
+                <div className="text-[8px] font-bold text-[var(--sz-gray)] uppercase mt-0.5">
+                  Final
+                </div>
+              )}
+            </div>
+          ) : ticketLoading ? (
+            <div className="flex flex-col items-center justify-center h-full">
+              <div className="w-3 h-3 animate-spin text-[var(--sz-gray)]">
+                <svg fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span>Loading tickets...</span>
               </div>
             </div>
           ) : ticketData?.found && ticketData.url && isValidTicketUrl(ticketData.url) ? (
@@ -493,47 +881,20 @@ function GameCard({ game, isBlackedOut, teamRSN, homeTeam }: { game: Game; isBla
               href={ticketData.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-3 rounded-lg
-                bg-[var(--sz-lime)]/10 border border-[var(--sz-lime)]/30
-                hover:bg-[var(--sz-lime)]/20 transition-colors group"
+              className="flex flex-col items-center text-center hover:opacity-80 transition-opacity"
             >
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-[var(--sz-lime)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-                <span className="text-sm font-semibold text-[var(--sz-lime)]">Buy Tickets</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {ticketData.lowestPrice ? (
-                  <span className="text-sm text-[var(--sz-white)]">
-                    {ticketData.isEstimated ? 'Est. ' : ''}from <span className="font-bold">${ticketData.lowestPrice}</span>
-                  </span>
-                ) : (
-                  <span className="text-xs text-[var(--sz-gray)]">View tickets</span>
-                )}
-                <svg className="w-4 h-4 text-[var(--sz-gray)] group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </div>
+              <div className="text-[8px] font-bold text-[var(--sz-lime)] uppercase leading-tight">Buy</div>
+              <div className="text-[8px] font-bold text-[var(--sz-lime)] uppercase leading-tight">Tickets</div>
             </a>
-          ) : ticketData?.estimatedPrice ? (
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--sz-navy-lighter)] border border-[var(--sz-navy-lighter)]">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-[var(--sz-gray)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-                <span className="text-sm text-[var(--sz-gray)]">Tickets</span>
-              </div>
-              <span className="text-sm text-[var(--sz-white)]">
-                Est. from <span className="font-bold">${ticketData.estimatedPrice}</span>
-              </span>
-            </div>
           ) : (
-            <div className="flex items-center justify-center p-3 rounded-lg bg-[var(--sz-navy-lighter)]/50 border border-[var(--sz-navy-lighter)]">
-              <span className="text-xs text-[var(--sz-gray)]">Tickets not yet available</span>
+            <div className="flex flex-col items-center text-center">
+              <div className="text-[8px] font-bold text-[var(--sz-gray)] uppercase leading-tight">Buy</div>
+              <div className="text-[8px] font-bold text-[var(--sz-gray)] uppercase leading-tight">Tickets</div>
+              <div className="mt-1 text-[8px] text-[var(--sz-gray)]">N/A</div>
             </div>
           )}
         </div>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBroadcastOverride } from '@/data/broadcast-schedule'
+import { MLB_TEAMS } from '@/data/teams'
 
 const MLB_API = 'https://statsapi.mlb.com/api/v1'
 
@@ -63,9 +64,12 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const team = searchParams.get('team')
   const season = searchParams.get('season') || '2026'
-  // Cap limit parameter to 1-100 range
+  // Cap limit parameter to 1-200 range (increased for full season support)
   const limitParam = parseInt(searchParams.get('limit') || '10')
-  const limit = Math.min(Math.max(isNaN(limitParam) ? 10 : limitParam, 1), 100)
+  const limit = Math.min(Math.max(isNaN(limitParam) ? 10 : limitParam, 1), 200)
+  // Offset parameter for pagination
+  const offsetStr = searchParams.get('offset')
+  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10)) || 0 : 0
 
   if (!team) {
     return NextResponse.json(
@@ -95,9 +99,9 @@ export async function GET(request: NextRequest) {
     const today = new Date()
     const todayStr = today.toISOString().split('T')[0]
 
-    // End date: 3 months from today (enough to get upcoming games)
+    // End date: 6 months from today (covers full remaining season)
     const endDate = new Date(today)
-    endDate.setMonth(endDate.getMonth() + 3)
+    endDate.setMonth(endDate.getMonth() + 6)
     const endDateStr = endDate.toISOString().split('T')[0]
 
     // First, try to fetch from today onwards
@@ -178,9 +182,16 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Default broadcasts if none specified
+        // Default broadcasts if none specified - use team's RSN as fallback
         if (broadcasts.length === 0) {
-          broadcasts.push('TBD')
+          // For home games, use home team's RSN; for away games, use away team's RSN
+          const relevantTeam = isHome ? homeTeam?.name : awayTeam?.name
+          const teamData = relevantTeam ? MLB_TEAMS[relevantTeam] : null
+          if (teamData?.rsn) {
+            broadcasts.push(teamData.rsn)
+          } else {
+            broadcasts.push('TBD')
+          }
         }
 
         // Get score if game is final or in progress
@@ -206,20 +217,26 @@ export async function GET(request: NextRequest) {
           score
         })
 
-        // Stop if we've reached the limit
-        if (games.length >= limit) {
+        // Stop if we've collected enough games (offset + limit)
+        if (games.length >= offset + limit) {
           break
         }
       }
-      if (games.length >= limit) {
+      if (games.length >= offset + limit) {
         break
       }
     }
 
+    // Apply offset and limit for pagination
+    const paginatedGames = games.slice(offset, offset + limit)
+
     return NextResponse.json({
       team,
       season,
-      games
+      games: paginatedGames,
+      total: games.length,
+      offset,
+      limit
     })
 
   } catch (error) {

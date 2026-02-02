@@ -16,11 +16,12 @@ export const CHANNEL_STREAMING_MAP: Record<string, string[]> = {
   'Apple TV+': ['Apple TV+ ($13/mo)'],
   'Peacock': ['Peacock ($8/mo)'],
   'Netflix': ['Netflix ($15/mo)'],
-  'Amazon': ['Amazon Prime Video'],
+  'Amazon': ['Amazon'],
 
   // Regional Sports Networks
-  'YES': ['YouTube TV', 'Amazon Prime (in-market)'],
-  'SNY': ['YouTube TV', 'Fubo', 'Amazon Prime (in-market)'],
+  'YES': ['YouTube TV', 'Fubo', 'Amazon (in-market)'],
+  'YES Network': ['YouTube TV', 'Fubo', 'Amazon (in-market)'],
+  'SNY': ['YouTube TV', 'Fubo', 'Amazon (in-market)'],
   'NESN': ['YouTube TV', 'Fubo', 'NESN 360'],
   'MASN': ['YouTube TV', 'Fubo'],
   'Bally Sports': ['Bally Sports+ ($20/mo)', 'Fubo (select markets)'],

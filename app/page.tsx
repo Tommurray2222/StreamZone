@@ -5,12 +5,28 @@ import { MLB_TEAMS } from '@/data/teams'
 import { US_STATES } from '@/data/states'
 import { SPORTS } from '@/data/sports'
 import { StreamingModal } from '@/components/StreamingModal'
+import { MyGamesModal } from '@/components/MyGamesModal'
+
+// Extract team nickname from full name
+const getTeamNickname = (fullName: string): string => {
+  const twoWordNicknames: Record<string, string> = {
+    'Boston Red Sox': 'Red Sox',
+    'Chicago White Sox': 'White Sox',
+    'Toronto Blue Jays': 'Blue Jays',
+  }
+  if (twoWordNicknames[fullName]) {
+    return twoWordNicknames[fullName]
+  }
+  // Otherwise return the last word
+  return fullName.split(' ').pop() || fullName
+}
 
 export default function Home() {
   const [selectedSport, setSelectedSport] = useState('mlb')
   const [selectedTeam, setSelectedTeam] = useState('')
   const [selectedState, setSelectedState] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isMyGamesOpen, setIsMyGamesOpen] = useState(false)
   const [favorites, setFavorites] = useState<Array<{ sport: string; team: string; state: string }>>([])
 
   // Load favorites from localStorage on mount
@@ -38,11 +54,11 @@ export default function Home() {
   const teamNames = Object.keys(MLB_TEAMS).sort()
   const selectedTeamData = selectedTeam ? MLB_TEAMS[selectedTeam] : null
 
-  // Sort states with team's home state first
+  // Sort states with team's home state first, then full alphabetical list (including the home state again)
   const sortedStates = selectedTeamData
     ? [
         ...US_STATES.filter(s => s.abbr === selectedTeamData.state),
-        ...US_STATES.filter(s => s.abbr !== selectedTeamData.state)
+        ...US_STATES
       ]
     : US_STATES
 
@@ -112,6 +128,20 @@ export default function Home() {
             <span className="text-xs font-semibold tracking-widest text-[var(--sz-gray)] uppercase">
               Favorites
             </span>
+            {favorites.length > 0 && (
+              <button
+                onClick={() => setIsMyGamesOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                  bg-[var(--sz-lime)]/10 border border-[var(--sz-lime)]/30
+                  text-[var(--sz-lime)] text-xs font-semibold
+                  hover:bg-[var(--sz-lime)]/20 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                My Games
+              </button>
+            )}
           </div>
           {favorites.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-[var(--sz-gray)]">
@@ -121,27 +151,22 @@ export default function Home() {
               <span>Tap Star to add team to favorites</span>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {favorites.map((fav, index) => (
                 <button
                   key={`${fav.team}-${fav.state}`}
                   onClick={() => selectFavorite(fav)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-lime)] transition-colors group"
+                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-lime)] transition-colors group"
                 >
-                  <img
-                    src={`/logos/sports/${fav.sport}.svg`}
-                    alt=""
-                    className="w-5 h-5 object-contain"
-                  />
-                  <span className="text-sm font-medium text-[var(--sz-white)]">
-                    {fav.team}
+                  <span className="text-sm font-medium text-[var(--sz-white)] truncate">
+                    {getTeamNickname(fav.team)}
                   </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       removeFavorite(index)
                     }}
-                    className="ml-1 p-0.5 text-[var(--sz-gray-dark)] hover:text-[var(--sz-red)] transition-colors"
+                    className="shrink-0 ml-2 p-0.5 text-[var(--sz-gray-dark)] hover:text-[var(--sz-red)] transition-colors"
                     aria-label="Remove favorite"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,14 +242,15 @@ export default function Home() {
             <div className="relative group">
               {/* League/Division badge */}
               {selectedTeamData && (
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wide
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <div className={`flex flex-col items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide leading-tight
                     ${selectedTeamData.league === 'AL'
                       ? 'bg-[var(--sz-red)]/20 text-[var(--sz-red)]'
                       : 'bg-[var(--sz-amber)]/20 text-[var(--sz-amber)]'
                     }`}>
-                    {selectedTeamData.league} {selectedTeamData.division}
-                  </span>
+                    <span>{selectedTeamData.league}</span>
+                    <span>{selectedTeamData.division}</span>
+                  </div>
                 </div>
               )}
               <select
@@ -236,7 +262,7 @@ export default function Home() {
                   text-[var(--sz-white)] text-lg font-medium
                   transition-all duration-200
                   focus:outline-none focus:border-[var(--sz-lime)] focus:glow-border
-                  ${selectedTeamData ? 'pl-24' : 'pl-4'}
+                  ${selectedTeamData ? (selectedTeamData.division === 'Central' ? 'pl-20' : 'pl-16') : 'pl-4'}
                   ${isSportEnabled ? 'cursor-pointer hover:border-[var(--sz-gray-dark)]' : 'cursor-not-allowed opacity-60'}`}
               >
                 {isSportEnabled ? (
@@ -289,8 +315,8 @@ export default function Home() {
                 {isSportEnabled ? (
                   <>
                     <option value="" disabled>Select your state...</option>
-                    {sortedStates.map((state) => (
-                      <option key={state.abbr} value={state.abbr}>
+                    {sortedStates.map((state, index) => (
+                      <option key={`${state.abbr}-${index}`} value={state.abbr}>
                         {state.name}
                       </option>
                     ))}
@@ -332,7 +358,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent
                 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             )}
-            <span className="relative">Find Streams</span>
+            <span className="relative">Where to Watch</span>
           </button>
 
           {/* Add to Favorites Button */}
@@ -365,6 +391,13 @@ export default function Home() {
         onClose={() => setIsModalOpen(false)}
         team={selectedTeam}
         state={selectedState}
+      />
+
+      {/* My Games Modal */}
+      <MyGamesModal
+        isOpen={isMyGamesOpen}
+        onClose={() => setIsMyGamesOpen(false)}
+        favorites={favorites}
       />
     </main>
   )

@@ -31,7 +31,7 @@ export const MLB_TEAMS: Record<string, Team> = {
   'Milwaukee Brewers': { city: 'Milwaukee', state: 'WI', market: 'Milwaukee/Wisconsin', rsn: 'Bally Sports Wisconsin', rsnNote: 'Available on Bally Sports+', league: 'NL', division: 'Central', record: '0-0' },
   'Minnesota Twins': { city: 'Minneapolis', state: 'MN', market: 'Twin Cities', rsn: 'Twins.TV (ESPN)', rsnNote: 'Direct-to-consumer via ESPN app', league: 'AL', division: 'Central', record: '0-0' },
   'New York Mets': { city: 'New York', state: 'NY', market: 'New York', rsn: 'SNY', rsnNote: 'Mets-owned, widely available on cable/streaming', league: 'NL', division: 'East', record: '0-0' },
-  'New York Yankees': { city: 'New York', state: 'NY', market: 'New York', rsn: 'YES Network', rsnNote: 'Yankees-owned, on most NY cable/streaming', league: 'AL', division: 'East', record: '0-0' },
+  'New York Yankees': { city: 'New York', state: 'NY', market: 'New York', rsn: 'YES', rsnNote: 'Yankees-owned, on most NY cable/streaming', league: 'AL', division: 'East', record: '0-0' },
   'Oakland Athletics': { city: 'Sacramento', state: 'CA', market: 'Sacramento/Bay Area', rsn: 'NBC Sports California', rsnNote: 'Team relocating to Sacramento 2028', league: 'AL', division: 'West', record: '0-0' },
   'Philadelphia Phillies': { city: 'Philadelphia', state: 'PA', market: 'Philadelphia', rsn: 'NBC Sports Philadelphia', rsnNote: 'Comcast regional network', league: 'NL', division: 'East', record: '0-0' },
   'Pittsburgh Pirates': { city: 'Pittsburgh', state: 'PA', market: 'Pittsburgh', rsn: 'SportsNet Pittsburgh', rsnNote: 'Available via cable/satellite', league: 'NL', division: 'Central', record: '0-0' },

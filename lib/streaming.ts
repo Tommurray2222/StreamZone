@@ -8,8 +8,21 @@ import { CHANNEL_STREAMING_MAP, NATIONAL_BROADCASTS } from '@/data/broadcasts'
 export interface StreamingService {
   name: string
   price: string | null
+  priceNum?: number // numeric price for comparison
   type: 'primary' | 'alternative' | 'national'
   note?: string
+  gamesPerSeason?: number // estimated games covered
+  coveragePercent?: number // percentage of games covered
+}
+
+export interface BestValueOption {
+  service: StreamingService
+  pricePerGame: number
+  annualCost: number
+  gamesPerSeason: number
+  coveragePercent: number
+  valueScore: number // higher is better
+  reasoning: string
 }
 
 export interface StreamingResult {
@@ -27,6 +40,13 @@ export interface StreamingResult {
   mlbTvStatus: {
     available: boolean
     note: string
+  }
+  bestValue: BestValueOption | null
+  allValueOptions: BestValueOption[]
+  categoryOptions: {
+    bestOverall: BestValueOption | null
+    bestCoverage: BestValueOption | null
+    bestBudget: BestValueOption | null
   }
 }
 
@@ -83,10 +103,151 @@ function parsePrice(serviceString: string): string | null {
 }
 
 /**
+ * Parse numeric monthly price from price string
+ */
+function parseMonthlyPrice(priceStr: string | null): number | null {
+  if (!priceStr) return null
+  // Handle "$X/mo" format
+  const monthlyMatch = priceStr.match(/\$(\d+)\/mo/)
+  if (monthlyMatch) return parseInt(monthlyMatch[1])
+  // Handle "$X/year" format - convert to monthly
+  const yearlyMatch = priceStr.match(/\$(\d+)\/year/)
+  if (yearlyMatch) return Math.round(parseInt(yearlyMatch[1]) / 12)
+  // Handle plain "$X" format
+  const plainMatch = priceStr.match(/\$(\d+)/)
+  if (plainMatch) return parseInt(plainMatch[1])
+  return null
+}
+
+/**
  * Get clean service name without price
  */
 function getServiceName(serviceString: string): string {
   return serviceString.replace(/\s*\([^)]+\)\s*$/, '').trim()
+}
+
+/**
+ * Calculate best value streaming options
+ * MLB season is ~162 games, but actual viewable games depend on service
+ */
+function calculateAllValueOptions(
+  primaryOptions: StreamingService[],
+  alternativeOptions: StreamingService[],
+  isBlackedOut: boolean
+): { best: BestValueOption | null; all: BestValueOption[]; categories: { bestOverall: BestValueOption | null; bestCoverage: BestValueOption | null; bestBudget: BestValueOption | null } } {
+  const SEASON_MONTHS = 6 // April - September
+
+  // Service coverage estimates
+  const coverageEstimates: Record<string, { games: number; percent: number }> = {
+    // Out-of-market options
+    'MLB.TV': { games: 150, percent: 93 },
+    'ESPN+ Bundle': { games: 150, percent: 93 },
+    // In-market RSN options (full coverage)
+    'YouTube TV': { games: 155, percent: 96 }, // RSN + national
+    'Fubo': { games: 155, percent: 96 },
+    'DirecTV': { games: 155, percent: 96 },
+    'Hulu + Live TV': { games: 150, percent: 93 },
+    'Hulu Live': { games: 150, percent: 93 },
+    // Direct RSN streaming
+    'Amazon': { games: 145, percent: 90 }, // In-market RSN games
+    'Bally Sports+': { games: 145, percent: 90 },
+    'NESN 360': { games: 145, percent: 90 },
+    'Marquee+': { games: 145, percent: 90 },
+    'SCHN+': { games: 145, percent: 90 },
+    'Spectrum': { games: 150, percent: 93 },
+    'Sling': { games: 130, percent: 80 },
+    // National only
+    'Apple TV+': { games: 25, percent: 15 },
+    'Peacock': { games: 20, percent: 12 },
+    'Netflix': { games: 5, percent: 3 },
+  }
+
+  const allOptions = [...primaryOptions, ...alternativeOptions]
+  const valueOptions: BestValueOption[] = []
+  let bestOption: BestValueOption | null = null
+
+  for (const service of allOptions) {
+    const monthlyPrice = parseMonthlyPrice(service.price)
+    if (!monthlyPrice) continue
+
+    // Find coverage estimate
+    let coverage = { games: 100, percent: 62 } // default
+    for (const [name, est] of Object.entries(coverageEstimates)) {
+      if (service.name.includes(name) || name.includes(service.name)) {
+        coverage = est
+        break
+      }
+    }
+
+    const annualCost = monthlyPrice * SEASON_MONTHS
+    const pricePerGame = annualCost / coverage.games
+    const valueScore = (coverage.percent * 10) - (monthlyPrice / 10)
+
+    const option: BestValueOption = {
+      service: { ...service, priceNum: monthlyPrice, gamesPerSeason: coverage.games, coveragePercent: coverage.percent },
+      pricePerGame: Math.round(pricePerGame * 100) / 100,
+      annualCost,
+      gamesPerSeason: coverage.games,
+      coveragePercent: coverage.percent,
+      valueScore,
+      reasoning: ''
+    }
+
+    // Set reasoning
+    if (isBlackedOut) {
+      if (service.name.includes('Bally') || service.name.includes('ESPN+') || service.name === 'NESN 360' || service.name === 'Marquee+') {
+        option.reasoning = `Direct RSN streaming covers ~${coverage.games} games`
+      } else {
+        option.reasoning = `Live TV package with RSN access`
+      }
+    } else {
+      if (service.name === 'ESPN+ Bundle') {
+        option.reasoning = `Includes MLB.TV + Disney+ + Hulu`
+      } else if (service.name === 'MLB.TV') {
+        option.reasoning = `Full out-of-market access`
+      } else {
+        option.reasoning = `${coverage.percent}% game coverage`
+      }
+    }
+
+    valueOptions.push(option)
+
+    if (!bestOption || option.valueScore > bestOption.valueScore) {
+      bestOption = option
+    }
+  }
+
+  // Sort by value score (best first)
+  valueOptions.sort((a, b) => b.valueScore - a.valueScore)
+
+  // Find category winners
+  // Best Overall: highest value score (balance of coverage and price)
+  const bestOverall = bestOption
+
+  // Best Coverage: highest coverage percentage
+  const bestCoverage = valueOptions.length > 0
+    ? valueOptions.reduce((best, current) =>
+        current.coveragePercent > best.coveragePercent ? current : best
+      )
+    : null
+
+  // Best Budget: lowest price with at least 80% coverage
+  const budgetOptions = valueOptions.filter(o => o.coveragePercent >= 80)
+  const bestBudget = budgetOptions.length > 0
+    ? budgetOptions.reduce((best, current) =>
+        (current.service.priceNum || 999) < (best.service.priceNum || 999) ? current : best
+      )
+    : null
+
+  return {
+    best: bestOption,
+    all: valueOptions,
+    categories: {
+      bestOverall,
+      bestCoverage,
+      bestBudget
+    }
+  }
 }
 
 /**
@@ -103,25 +264,57 @@ export function getStreamingOptions(team: string, state: string): StreamingResul
   const alternativeOptions: StreamingService[] = []
 
   if (blackedOut) {
-    // User is in-market - recommend RSN options
+    // User is in-market - recommend RSN options based on actual carriers
+    // Service pricing reference
+    const servicePricing: Record<string, { price: string; note: string }> = {
+      'YouTube TV': { price: '$73/mo', note: 'Live TV + RSN access' },
+      'Fubo': { price: '$80/mo', note: 'Sports-focused live TV' },
+      'Hulu + Live TV': { price: '$77/mo', note: 'Live TV + Hulu library' },
+      'Amazon': { price: '$15/mo', note: 'Prime membership (in-market only)' },
+      'Bally Sports+': { price: '$20/mo', note: 'Direct RSN streaming' },
+      'NESN 360': { price: '$30/mo', note: 'Direct NESN streaming' },
+      'Marquee+': { price: '$10/mo', note: 'Direct Cubs streaming' },
+      'SCHN+': { price: '$20/mo', note: 'Space City Home Network' },
+      'DirecTV': { price: '$90/mo', note: 'Choice package with RSNs' },
+      'Spectrum': { price: '$60/mo', note: 'Cable (where available)' },
+    }
+
+    // Add services that actually carry this team's RSN
+    const addedServices = new Set<string>()
+
     rsnInfo.streamingOptions.forEach(option => {
-      primaryOptions.push({
-        name: getServiceName(option),
-        price: parsePrice(option),
-        type: 'primary',
-        note: 'In-market RSN'
-      })
+      const serviceName = getServiceName(option)
+      const pricing = servicePricing[serviceName]
+
+      if (pricing && !addedServices.has(serviceName)) {
+        primaryOptions.push({
+          name: serviceName,
+          price: pricing.price,
+          type: 'primary',
+          note: pricing.note
+        })
+        addedServices.add(serviceName)
+      } else if (!addedServices.has(serviceName)) {
+        // Use price from the option string if available
+        primaryOptions.push({
+          name: serviceName,
+          price: parsePrice(option),
+          type: 'primary',
+          note: 'RSN carrier'
+        })
+        addedServices.add(serviceName)
+      }
     })
 
-    // Add live TV streaming services that carry RSNs
-    const livetvServices = [
-      { name: 'YouTube TV', price: '$73/mo', note: 'Includes most RSNs' },
-      { name: 'Fubo', price: '$80/mo', note: 'Sports-focused, includes most RSNs' },
-      { name: 'Hulu + Live TV', price: '$77/mo', note: 'Includes most RSNs' },
+    // Add other major live TV services as alternatives if not already added
+    const additionalServices = [
+      { name: 'YouTube TV', price: '$73/mo', note: 'Live TV + most RSNs' },
+      { name: 'Fubo', price: '$80/mo', note: 'Sports-focused live TV' },
+      { name: 'DirecTV', price: '$90/mo', note: 'Choice package with RSNs' },
     ]
 
-    livetvServices.forEach(svc => {
-      if (!primaryOptions.some(p => p.name === svc.name)) {
+    additionalServices.forEach(svc => {
+      if (!addedServices.has(svc.name)) {
         alternativeOptions.push({
           name: svc.name,
           price: svc.price,
@@ -169,6 +362,8 @@ export function getStreamingOptions(team: string, state: string): StreamingResul
     })
   }
 
+  const { best: bestValue, all: allValueOptions, categories } = calculateAllValueOptions(primaryOptions, alternativeOptions, blackedOut)
+
   return {
     team,
     teamData,
@@ -182,6 +377,13 @@ export function getStreamingOptions(team: string, state: string): StreamingResul
       note: blackedOut
         ? `Blacked out in ${state} - use RSN instead`
         : `Available - stream all ${team} games`
+    },
+    bestValue,
+    allValueOptions,
+    categoryOptions: {
+      bestOverall: categories.bestOverall,
+      bestCoverage: categories.bestCoverage,
+      bestBudget: categories.bestBudget
     }
   }
 }
