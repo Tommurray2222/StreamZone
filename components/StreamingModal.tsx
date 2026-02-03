@@ -224,143 +224,6 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
               </div>
             </div>
 
-            {/* Service Detail Popup */}
-            {selectedValueOption && (
-              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                <div
-                  className="absolute inset-0 bg-black/50"
-                  onClick={() => setSelectedValueOption(null)}
-                />
-                <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-2xl p-5 max-w-sm w-full shadow-xl">
-                  <button
-                    onClick={() => setSelectedValueOption(null)}
-                    className="absolute top-3 right-3 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-xl font-bold text-[var(--sz-white)]">
-                      {selectedValueOption.service.name}
-                    </h4>
-                    {streamingData.allValueOptions[0]?.service.name === selectedValueOption.service.name && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--sz-lime)]/20 text-[var(--sz-lime)]">
-                        Best Value
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-[var(--sz-gray)] mb-4">
-                    {selectedValueOption.reasoning}
-                  </p>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
-                      <span className="text-sm text-[var(--sz-gray)]">Monthly Price</span>
-                      <span className="text-lg font-bold text-[var(--sz-lime)]">${selectedValueOption.service.priceNum}/mo</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
-                      <span className="text-sm text-[var(--sz-gray)]">Season Cost (6 mo)</span>
-                      <span className="font-semibold text-[var(--sz-white)]">${selectedValueOption.annualCost}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
-                      <span className="text-sm text-[var(--sz-gray)]">Games Covered</span>
-                      <span className="font-semibold text-[var(--sz-white)]">~{selectedValueOption.gamesPerSeason} games</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
-                      <span className="text-sm text-[var(--sz-gray)]">Coverage</span>
-                      <span className="font-semibold text-[var(--sz-white)]">{selectedValueOption.coveragePercent}%</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm text-[var(--sz-gray)]">Price per Game</span>
-                      <span className="font-semibold text-[var(--sz-amber)]">${selectedValueOption.pricePerGame}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setSelectedValueOption(null)}
-                    className="w-full mt-5 py-3 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Other Options Popup */}
-            {showOtherOptions && streamingData.allValueOptions && (
-              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                <div
-                  className="absolute inset-0 bg-black/50"
-                  onClick={() => setShowOtherOptions(false)}
-                />
-                <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-2xl p-5 max-w-sm w-full shadow-xl max-h-[80vh] overflow-y-auto">
-                  <button
-                    onClick={() => setShowOtherOptions(false)}
-                    className="absolute top-3 right-3 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-
-                  <h4 className="text-lg font-bold text-[var(--sz-white)] mb-4">
-                    Other Streaming Options
-                  </h4>
-
-                  <div className="space-y-2">
-                    {(() => {
-                      const excludeNames = new Set([
-                        streamingData.categoryOptions.bestOverall?.service.name,
-                        streamingData.categoryOptions.bestBudget?.service.name
-                      ].filter(Boolean))
-                      return streamingData.allValueOptions
-                        .filter(opt => !excludeNames.has(opt.service.name))
-                        .slice(0, 5)
-                        .map((option) => (
-                          <button
-                            key={option.service.name}
-                            onClick={() => {
-                              setShowOtherOptions(false)
-                              setSelectedValueOption(option)
-                            }}
-                            className="w-full p-3 rounded-lg text-left transition-all bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-gray-dark)]"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="text-sm font-semibold text-[var(--sz-white)]">
-                                  {option.service.name}
-                                </div>
-                                <div className="text-xs text-[var(--sz-gray)] mt-0.5">
-                                  {option.reasoning}
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0 ml-3">
-                                <div className="text-sm font-bold text-[var(--sz-lime)]">
-                                  ${option.service.priceNum}/mo
-                                </div>
-                                <div className="text-xs text-[var(--sz-gray)]">
-                                  {option.coveragePercent}% coverage
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        ))
-                    })()}
-                  </div>
-
-                  <button
-                    onClick={() => setShowOtherOptions(false)}
-                    className="w-full mt-4 py-3 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Upcoming Games Schedule */}
             {schedule.length > 0 && (
               <div className="mb-6">
@@ -470,6 +333,143 @@ export function StreamingModal({ isOpen, onClose, team, state }: StreamingModalP
           </div>
         )}
       </div>
+
+      {/* Service Detail Popup - Outside scrolling modal for proper centering */}
+      {selectedValueOption && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setSelectedValueOption(null)}
+          />
+          <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-2xl p-5 max-w-sm w-full shadow-xl">
+            <button
+              onClick={() => setSelectedValueOption(null)}
+              className="absolute top-3 right-3 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="text-xl font-bold text-[var(--sz-white)]">
+                {selectedValueOption.service.name}
+              </h4>
+              {streamingData?.allValueOptions[0]?.service.name === selectedValueOption.service.name && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--sz-lime)]/20 text-[var(--sz-lime)]">
+                  Best Value
+                </span>
+              )}
+            </div>
+
+            <p className="text-sm text-[var(--sz-gray)] mb-4">
+              {selectedValueOption.reasoning}
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                <span className="text-sm text-[var(--sz-gray)]">Monthly Price</span>
+                <span className="text-lg font-bold text-[var(--sz-lime)]">${selectedValueOption.service.priceNum}/mo</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                <span className="text-sm text-[var(--sz-gray)]">Season Cost (6 mo)</span>
+                <span className="font-semibold text-[var(--sz-white)]">${selectedValueOption.annualCost}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                <span className="text-sm text-[var(--sz-gray)]">Games Covered</span>
+                <span className="font-semibold text-[var(--sz-white)]">~{selectedValueOption.gamesPerSeason} games</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-[var(--sz-navy-lighter)]">
+                <span className="text-sm text-[var(--sz-gray)]">Coverage</span>
+                <span className="font-semibold text-[var(--sz-white)]">{selectedValueOption.coveragePercent}%</span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-[var(--sz-gray)]">Price per Game</span>
+                <span className="font-semibold text-[var(--sz-amber)]">${selectedValueOption.pricePerGame}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedValueOption(null)}
+              className="w-full mt-5 py-3 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Other Options Popup - Outside scrolling modal for proper centering */}
+      {showOtherOptions && streamingData?.allValueOptions && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowOtherOptions(false)}
+          />
+          <div className="relative bg-[var(--sz-navy)] border border-[var(--sz-navy-lighter)] rounded-2xl p-5 max-w-sm w-full shadow-xl max-h-[80vh] overflow-y-auto">
+            <button
+              onClick={() => setShowOtherOptions(false)}
+              className="absolute top-3 right-3 p-1 text-[var(--sz-gray)] hover:text-[var(--sz-white)]"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h4 className="text-lg font-bold text-[var(--sz-white)] mb-4">
+              Other Streaming Options
+            </h4>
+
+            <div className="space-y-2">
+              {(() => {
+                const excludeNames = new Set([
+                  streamingData?.categoryOptions.bestOverall?.service.name,
+                  streamingData?.categoryOptions.bestBudget?.service.name
+                ].filter(Boolean))
+                return streamingData?.allValueOptions
+                  .filter(opt => !excludeNames.has(opt.service.name))
+                  .slice(0, 5)
+                  .map((option) => (
+                    <button
+                      key={option.service.name}
+                      onClick={() => {
+                        setShowOtherOptions(false)
+                        setSelectedValueOption(option)
+                      }}
+                      className="w-full p-3 rounded-lg text-left transition-all bg-[var(--sz-navy-light)] border border-[var(--sz-navy-lighter)] hover:border-[var(--sz-gray-dark)]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-semibold text-[var(--sz-white)]">
+                            {option.service.name}
+                          </div>
+                          <div className="text-xs text-[var(--sz-gray)] mt-0.5">
+                            {option.reasoning}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          <div className="text-sm font-bold text-[var(--sz-lime)]">
+                            ${option.service.priceNum}/mo
+                          </div>
+                          <div className="text-xs text-[var(--sz-gray)]">
+                            {option.coveragePercent}% coverage
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+              })()}
+            </div>
+
+            <button
+              onClick={() => setShowOtherOptions(false)}
+              className="w-full mt-4 py-3 rounded-lg bg-[var(--sz-navy-lighter)] text-[var(--sz-white)] font-semibold hover:bg-[var(--sz-gray-dark)] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
