@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'StreamZone',
   webDir: 'out',
   server: {
-    url: 'https://1-claude-code-1xfl3zikc-thomas-murrays-projects-9ce1fdb4.vercel.app',
+    url: 'https://streamzonesports.vercel.app',
     cleartext: false
   }
 };
