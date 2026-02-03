@@ -361,8 +361,8 @@ function CombinedGameCard({ game }: { game: CombinedGame }) {
 
   // Get streaming data for this team
   const streamingData = getStreamingOptions(game.team, game.state)
-  const isBlackedOut = streamingData.isBlackedOut
-  const teamRSN = streamingData.rsnInfo.name
+  const isBlackedOut = streamingData?.isBlackedOut ?? false
+  const teamRSN = streamingData?.rsnInfo?.name ?? ''
 
   // Determine watch info
   const getWatchInfo = () => {
