@@ -140,10 +140,10 @@ export default function PrivacyPolicy() {
             <p>
               If you have any questions about this Privacy Policy, please contact us at:{' '}
               <a
-                href="mailto:YOUR_EMAIL_HERE"
+                href="mailto:streamzonesports@gmail.com"
                 className="text-[var(--sz-lime)] hover:underline"
               >
-                YOUR_EMAIL_HERE
+                streamzonesports@gmail.com
               </a>
             </p>
           </section>
