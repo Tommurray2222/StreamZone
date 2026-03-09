@@ -9,7 +9,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.streamzone.app
-        certificate_private_key: $CERTIFICATE_PRIVATE_KEY
       node: v22.0.0
       xcode: latest
       cocoapods: default
