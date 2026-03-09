@@ -26,7 +26,7 @@ workflows:
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>app-store</string>
+            <string>app-store-connect</string>
             <key>teamID</key>
             <string>4998W46J93</string>
             <key>signingStyle</key>
@@ -48,7 +48,7 @@ workflows:
             --archive-flags="-allowProvisioningUpdates -destination 'generic/platform=iOS' -sdk iphoneos CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER='StreamZone App Store' CODE_SIGN_IDENTITY='Apple Distribution'" \
             --export-options-plist /tmp/export_options.plist
     artifacts:
-      - $CM_BUILD_DIR/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
