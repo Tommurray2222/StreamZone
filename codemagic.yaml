@@ -16,7 +16,7 @@ workflows:
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.streamzone.app"
         APPLE_TEAM_ID: "4998W46J93"
-      node: v18.17.0
+      node: v22.0.0
       xcode: latest
 
     scripts:
