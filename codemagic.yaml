@@ -37,7 +37,9 @@ workflows:
           xcode-project build-ipa \
             --project "ios/App/App.xcodeproj" \
             --scheme "App" \
-            --export-options-plist /tmp/export_options.plist
+            --export-options-plist /tmp/export_options.plist \
+            --code-signing-identity "Apple Distribution: Thomas Murray (4998W46J93)" \
+            --provisioning-profile-specifier "StreamZone App Store"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
