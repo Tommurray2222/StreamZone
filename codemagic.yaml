@@ -41,12 +41,24 @@ workflows:
           EOF
       - name: Build iOS app
         script: |
-          xcode-project build-ipa \
-            --project "ios/App/App.xcodeproj" \
-            --scheme "App" \
-            --config "Release" \
-            --archive-flags="-allowProvisioningUpdates -destination 'generic/platform=iOS' -sdk iphoneos CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER='StreamZone App Store' CODE_SIGN_IDENTITY='Apple Distribution'" \
-            --export-options-plist /tmp/export_options.plist
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -sdk iphoneos \
+            -archivePath build/ios/xcarchive/App.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="StreamZone App Store" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM=4998W46J93 \
+            archive
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/ios/xcarchive/App.xcarchive \
+            -exportOptionsPlist /tmp/export_options.plist \
+            -exportPath build/ios/ipa
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
