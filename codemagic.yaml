@@ -3,56 +3,32 @@ workflows:
     name: StreamZone iOS Release
     max_build_duration: 120
     instance_type: mac_mini_m2
-
     integrations:
       app_store_connect: Codemagic
-
     environment:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.streamzone.app
-      vars:
-        XCODE_PROJECT: "ios/App/App.xcodeproj"
-        XCODE_SCHEME: "App"
-        BUNDLE_ID: "com.streamzone.app"
-        APPLE_TEAM_ID: "4998W46J93"
       node: v22.0.0
       xcode: latest
-
+      cocoapods: default
     scripts:
       - name: Install npm dependencies
-        script: |
-          npm install
-
+        script: npm install
       - name: Build Next.js web app
-        script: |
-          npm run build
-
+        script: npm run build
       - name: Install Capacitor and sync iOS
-        script: |
-          npx cap sync ios
-
-      - name: Fetch signing files
-        script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-
-      - name: Set up code signing settings on Xcode project
-        script: |
-          xcode-project use-profiles
-
+        script: npx cap sync ios
+      - name: Install CocoaPods
+        script: cd ios/App && pod install
       - name: Build iOS app
         script: |
           xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME"
-
+            --workspace "ios/App/App.xcworkspace" \
+            --scheme "App"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
-
     publishing:
       app_store_connect:
         auth: integration
