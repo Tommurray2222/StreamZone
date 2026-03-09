@@ -11,7 +11,6 @@ workflows:
         bundle_identifier: com.streamzone.app
       node: v22.0.0
       xcode: latest
-      cocoapods: default
     scripts:
       - name: Install npm dependencies
         script: npm install
@@ -19,12 +18,10 @@ workflows:
         script: npm run build
       - name: Install Capacitor and sync iOS
         script: npx cap sync ios
-      - name: Install CocoaPods
-        script: cd ios/App && pod install --repo-update
       - name: Build iOS app
         script: |
           xcode-project build-ipa \
-            --workspace "ios/App/App.xcworkspace" \
+            --project "ios/App/App.xcodeproj" \
             --scheme "App"
     artifacts:
       - build/ios/ipa/*.ipa
