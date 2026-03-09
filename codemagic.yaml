@@ -29,6 +29,13 @@ workflows:
             <string>app-store</string>
             <key>teamID</key>
             <string>4998W46J93</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.streamzone.app</key>
+              <string>StreamZone App Store</string>
+            </dict>
           </dict>
           </plist>
           EOF
