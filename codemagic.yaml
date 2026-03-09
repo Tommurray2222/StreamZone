@@ -45,7 +45,7 @@ workflows:
             --project "ios/App/App.xcodeproj" \
             --scheme "App" \
             --config "Release" \
-            --archive-flags="-allowProvisioningUpdates" \
+            --archive-flags="-allowProvisioningUpdates CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER='StreamZone App Store' CODE_SIGN_IDENTITY='Apple Distribution'" \
             --export-options-plist /tmp/export_options.plist
     artifacts:
       - $CM_BUILD_DIR/ipa/*.ipa
