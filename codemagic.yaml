@@ -17,7 +17,7 @@ workflows:
       - name: Build Next.js web app
         script: npm run build
       - name: Install Capacitor and sync iOS
-        script: npx cap sync ios
+        script: npm run build && npx cap copy ios && npx cap sync ios
       - name: Create export options
         script: |
           cat > /tmp/export_options.plist << EOF
