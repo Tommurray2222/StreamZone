@@ -12,13 +12,12 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.streamzone.app
       vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.streamzone.app"
         APPLE_TEAM_ID: "4998W46J93"
       node: v18.17.0
       xcode: latest
-      cocoapods: default
 
     scripts:
       - name: Install npm dependencies
@@ -33,10 +32,6 @@ workflows:
         script: |
           npx cap sync ios
 
-      - name: Install CocoaPods
-        script: |
-          cd ios/App && pod install
-
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
@@ -44,7 +39,7 @@ workflows:
       - name: Build iOS app
         script: |
           xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
+            --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
 
     artifacts:
