@@ -41,9 +41,7 @@ workflows:
           EOF
       - name: Bump build version
         script: |
-          CURRENT_BUILD=$(agvtool what-version -terse)
-          NEW_BUILD=$((CURRENT_BUILD + 1))
-          cd ios/App && agvtool new-version -all $NEW_BUILD
+          cd ios/App && agvtool next-version -all
       - name: Build iOS app
         script: |
           xcodebuild \
