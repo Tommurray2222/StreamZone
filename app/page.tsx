@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { MLB_TEAMS } from '@/data/teams'
 import { US_STATES } from '@/data/states'
 import { SPORTS } from '@/data/sports'
@@ -22,15 +23,35 @@ const getTeamNickname = (fullName: string): string => {
 }
 
 export default function Home() {
-  const [selectedSport, setSelectedSport] = useState('mlb')
-  const [selectedTeam, setSelectedTeam] = useState('')
-  const [selectedState, setSelectedState] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isMyGamesOpen, setIsMyGamesOpen] = useState(false)
-  const [favorites, setFavorites] = useState<Array<{ sport: string; team: string; state: string }>>([])
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
+  )
+}
 
-  // Load favorites from localStorage on mount
+function HomeContent() {
+  const searchParams = useSearchParams()
+  const demoMode = searchParams.get('demo')
+
+  const [selectedSport, setSelectedSport] = useState('mlb')
+  const [selectedTeam, setSelectedTeam] = useState(demoMode ? 'New York Yankees' : '')
+  const [selectedState, setSelectedState] = useState(demoMode ? 'CA' : '')
+  const [isModalOpen, setIsModalOpen] = useState(demoMode === 'streaming')
+  const [isMyGamesOpen, setIsMyGamesOpen] = useState(demoMode === 'mygames')
+  const [favorites, setFavorites] = useState<Array<{ sport: string; team: string; state: string }>>(
+    demoMode
+      ? [
+          { sport: 'mlb', team: 'New York Yankees', state: 'CA' },
+          { sport: 'mlb', team: 'Los Angeles Dodgers', state: 'CA' },
+          { sport: 'mlb', team: 'Chicago Cubs', state: 'IL' },
+        ]
+      : []
+  )
+
+  // Load favorites from localStorage on mount (skip in demo mode)
   useEffect(() => {
+    if (demoMode) return
     const saved = localStorage.getItem('streamzone-favorites')
     if (saved) {
       try {
@@ -39,7 +60,7 @@ export default function Home() {
         console.error('Failed to parse favorites', e)
       }
     }
-  }, [])
+  }, [demoMode])
 
   // Save favorites to localStorage when changed
   useEffect(() => {

@@ -142,6 +142,6 @@ body {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
   .safe-top {
-    padding-top: max(0px, env(safe-area-inset-top));
+    padding-top: max(3rem, env(safe-area-inset-top));
   }
 }
