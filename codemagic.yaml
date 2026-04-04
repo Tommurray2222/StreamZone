@@ -39,9 +39,9 @@ workflows:
           </dict>
           </plist>
           EOF
-      - name: Bump build version
+      - name: Set build version
         script: |
-          cd ios/App && agvtool next-version -all
+          cd ios/App && agvtool new-version -all $(($PROJECT_BUILD_NUMBER + 3))
       - name: Build iOS app
         script: |
           xcodebuild \
