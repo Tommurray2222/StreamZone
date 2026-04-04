@@ -37,3 +37,10 @@ next-env.d.ts
 # PWA
 /public/sw.js
 /public/workbox-*.js
+
+# iOS code signing
+*.certSigningRequest
+*.key
+*.p12
+*.pem
+*.cer
